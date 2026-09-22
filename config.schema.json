@@ -1,0 +1,85 @@
+{
+  "pluginAlias": "HomeControllers",
+  "pluginType": "platform",
+  "singular": true,
+  "headerDisplay": "Reads the house controllers off the shared MQTT broker. Each board publishes a retained state document, so accessories appear as soon as the bridge subscribes - nothing is polled.",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "required": true,
+        "default": "Home Controllers"
+      },
+      "broker": {
+        "title": "MQTT broker",
+        "type": "object",
+        "properties": {
+          "host": {
+            "title": "Host",
+            "type": "string",
+            "required": true,
+            "default": "broker.lan",
+            "description": "hc-data, the broker the controllers already publish to."
+          },
+          "port": {
+            "title": "Port",
+            "type": "integer",
+            "required": false,
+            "default": 1883
+          },
+          "username": {
+            "title": "Username",
+            "type": "string",
+            "required": true,
+            "default": "homebridge",
+            "description": "A read-only account. It must not be a device account: those are write-only and see nothing."
+          },
+          "password": {
+            "title": "Password",
+            "type": "string",
+            "required": true,
+            "x-schema-form": { "type": "password" }
+          }
+        }
+      },
+      "exposeHeatingDeltas": {
+        "title": "Expose supply/return differences",
+        "type": "boolean",
+        "required": false,
+        "default": true,
+        "description": "Adds the differences the heating firmware computes as extra temperature sensors. HomeKit has no service for a difference, so 8 K shows as 8 °C - useful for automations, wrong as a unit."
+      },
+      "exposeGateCameraHealth": {
+        "title": "Expose gate camera health",
+        "type": "boolean",
+        "required": false,
+        "default": false,
+        "description": "The gate reports no position, so it has no door accessory. This adds a contact sensor for whether its camera is alive."
+      },
+      "include": {
+        "title": "Only expose these",
+        "type": "array",
+        "required": false,
+        "items": { "type": "string", "title": "Name or id" },
+        "description": "Accessory names such as \"Outdoor\", or full ids such as \"heating:aabbcc000001:28ff000000000001\" when two boards use the same label. Leave empty to expose everything. Anything already in Apple Home and not on this list is removed on the next restart."
+      },
+      "exclude": {
+        "title": "Expose everything except these",
+        "type": "array",
+        "required": false,
+        "items": { "type": "string", "title": "Name or id" },
+        "description": "Ignored when the include list is not empty."
+      },
+      "staleAfterSeconds": {
+        "title": "Treat a device as unreachable after (s)",
+        "type": "integer",
+        "required": false,
+        "default": 300,
+        "minimum": 60,
+        "description": "A board that stops refreshing its state document reports no response, rather than showing a frozen reading."
+      }
+    }
+  }
+}

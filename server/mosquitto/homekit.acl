@@ -1,0 +1,20 @@
+# homekit: the Apple Home bridge, plus the two devices that publish only for it
+# (merged into /etc/mosquitto/acl by install.sh, alongside heating.acl and water.acl)
+
+# floor-heating-controller and gate-controller keep no history worth ingesting; they publish the
+# retained state document and nothing else.
+user floor-heating-controller
+topic write floorheating/+/state
+topic readwrite floorheating/+/status
+
+user gate-controller
+topic write gate/+/state
+topic readwrite gate/+/status
+
+# The bridge reads every namespace and writes nothing: a leaked bridge password must not be able to
+# forge a valve event or a sensor reading.
+user homebridge
+topic read heating/#
+topic read water/#
+topic read floorheating/#
+topic read gate/#

@@ -1,0 +1,44 @@
+{
+  "name": "@tomekceszke/homebridge-home-controllers",
+  "displayName": "Home Controllers",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Brings the house ESP32 controllers into Apple Home over the shared MQTT bus",
+  "author": "Tomek Ceszke",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tomekceszke/homebridge-home-controllers.git"
+  },
+  "keywords": [
+    "homebridge-plugin",
+    "mqtt",
+    "esp32",
+    "temperature",
+    "water",
+    "heating"
+  ],
+  "main": "dist/index.js",
+  "engines": {
+    "homebridge": "^1.6.0 || ^2.0.0",
+    "node": "^22.12.0 || ^24.0.0"
+  },
+  "scripts": {
+    "build": "rimraf ./dist && tsc",
+    "watch": "npm run build && npm link && nodemon",
+    "lint": "eslint src --max-warnings=0",
+    "prepublishOnly": "npm run lint && npm run build"
+  },
+  "dependencies": {
+    "fakegato-history": "^0.6.7",
+    "mqtt": "^5.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "homebridge": "^2.0.0",
+    "nodemon": "^3.1.9",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.2"
+  }
+}
