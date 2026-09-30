@@ -4,9 +4,10 @@ import {
 } from '../signals.js';
 
 /** Valve reasons that mean protection acted, rather than a person or a restored state. */
-const PROTECTION_REASONS = new Set(['tier0', 'tier1', 'tier2']);
+const PROTECTION_REASONS = new Set(['tier0', 'tier1', 'tier2', 'tier3']);   // tier3: learned night limit (3.4.2+)
 
-/** Tier 2 rules that only notify: the learned limits (firmware 3.4+) and the dripping-leak rule. */
+/** Rules that notify: the Tier 3 learned limits (firmware 3.4+) and the dripping-leak rule. A learned limit that
+ * closed the valve at night (3.4.2+, `last_rule_closed`) is a Water leak instead. */
 const NOTICE_RULES = new Set(['learned_duration', 'learned_volume', 'night_flows', 'leak']);
 
 /** How long "Unusual water use" stays open after a notice, so Apple Home has time to show it. */

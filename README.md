@@ -36,7 +36,7 @@ gate/aabbcc000005/state           pulse counter, camera health
 The water controller has two levels of trouble, and Apple Home gets both:
 
 - **Water leak** (`LeakSensor`, a critical alert that sounds even on a silenced phone): the valve is shut and the
-  reason is a protection tier (Tier 0, 1 or 2). The firmware judged that something is wrong and acted.
+  reason is a protection tier (Tier 0, 1, 2, or 3 when the learned night shut-off is on). The firmware judged that something is wrong and acted.
 - **Unusual water use** (`ContactSensor`, an ordinary notification if enabled for it in Apple Home): the firmware
   noticed something odd but did not shut the water off. It is open while the running flow is past the limit
   learned for its hour (firmware 3.4+ `learned.limit_s` / `limit_l`), and for 30 minutes after a Tier 2 notice
