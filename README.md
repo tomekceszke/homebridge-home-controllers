@@ -27,9 +27,24 @@ gate/aabbcc000005/state           pulse counter, camera health
 | Controller | Accessories |
 |---|---|
 | heating ×2 | One `TemperatureSensor` per DS18B20, named from the firmware's own labels, plus the supply/return differences if enabled |
-| water | `LeakSensor`, a `ContactSensor` for the valve, and a `ContactSensor` for flow carrying the Eve flow-rate and daily-total characteristics |
+| water | `LeakSensor`, a `ContactSensor` "Unusual water use", a `ContactSensor` for the valve, and a `ContactSensor` for flow carrying the Eve flow-rate and daily-total characteristics |
 | floor heating | `TemperatureSensor` for the supply pipe, `ContactSensor` for the pump, `ContactSensor` for overheat |
 | gate | Optional `ContactSensor` for camera health |
+
+### Two levels for water
+
+The water controller has two levels of trouble, and Apple Home gets both:
+
+- **Water leak** (`LeakSensor`, a critical alert that sounds even on a silenced phone): the valve is shut and the
+  reason is a protection tier (Tier 0, 1 or 2). The firmware judged that something is wrong and acted.
+- **Unusual water use** (`ContactSensor`, an ordinary notification if enabled for it in Apple Home): the firmware
+  noticed something odd but did not shut the water off. It is open while the running flow is past the limit
+  learned for its hour (firmware 3.4+ `learned.limit_s` / `limit_l`), and for 30 minutes after a Tier 2 notice
+  (a learned limit, too many flows in one night, a dripping leak). It is a contact sensor on purpose: a second leak
+  sensor would turn every notice into a critical alert.
+
+Firmware 3.4 republishes the retained state at once on a valve change, a Tier 2 notice or an alert, so both
+sensors follow within a second or two instead of at the next 60 s refresh.
 
 ### Why the gate has no door
 
@@ -50,7 +65,7 @@ Ten temperature sensors is a lot of tiles for a house that cares about two of th
 allowlist of accessory names, or full ids when two boards label a sensor the same way:
 
 ```json
-"include": ["Outdoor", "Heater supply", "Water leak", "Water valve", "Water flow", "Floor heating pump"]
+"include": ["Outdoor", "Heater supply", "Water leak", "Unusual water use", "Water valve", "Water flow", "Floor heating pump"]
 ```
 
 Anything already in Apple Home and not on the list is **unregistered on the next restart**. That decision
