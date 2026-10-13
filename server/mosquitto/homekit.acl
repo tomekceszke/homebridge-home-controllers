@@ -1,5 +1,5 @@
 # homekit: the Apple Home bridge, plus the two devices that publish only for it
-# (merged into /etc/mosquitto/acl by install.sh, alongside heating.acl and water.acl)
+# (merged into /etc/mosquitto/acl by install.sh, alongside heating.acl, water.acl and heatronic.acl)
 
 # floor-heating-controller and gate-controller keep no history worth ingesting; they publish the
 # retained state document and nothing else.
@@ -18,3 +18,4 @@ topic read heating/#
 topic read water/#
 topic read floorheating/#
 topic read gate/#
+topic read heatronic/#

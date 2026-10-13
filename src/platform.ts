@@ -11,6 +11,7 @@ import { asRecord, type DeviceSignals, type Signal } from './signals.js';
 import { floorHeatingSignals } from './devices/floorheating.js';
 import { gateSignals } from './devices/gate.js';
 import { heatingSignals } from './devices/heating.js';
+import { heatronicSignals } from './devices/heatronic.js';
 import { waterSignals } from './devices/water.js';
 
 interface BrokerConfig {
@@ -234,6 +235,8 @@ export class HomeControllersPlatform implements DynamicPlatformPlugin {
     switch (namespace) {
       case 'heating':
         return heatingSignals(state, { exposeDeltas: this.config.exposeHeatingDeltas !== false });
+      case 'heatronic':
+        return heatronicSignals(state);
       case 'water':
         return waterSignals(state);
       case 'floorheating':

@@ -17,6 +17,7 @@ no polling interval to wait out, and no window where accessories show stale valu
 ```
 heating/aabbcc000001/state        hc-1, 3 sensors
 heating/aabbcc000002/state        hc-2, 7 sensors
+heatronic/aabbcc000006/state      boiler-room and outdoor DS18B20s (formerly hc-1's)
 water/aabbcc000003/state          valve, flow, usage
 floorheating/aabbcc000004/state   supply temperature, pump
 gate/aabbcc000005/state           pulse counter, camera health
@@ -27,6 +28,7 @@ gate/aabbcc000005/state           pulse counter, camera health
 | Controller | Accessories |
 |---|---|
 | heating ×2 | One `TemperatureSensor` per DS18B20, named from the firmware's own labels, plus the supply/return differences if enabled |
+| heatronic | One `TemperatureSensor` per DS18B20, as for heating; the boiler's own bus data is not exposed |
 | water | `LeakSensor`, a `ContactSensor` "Unusual water use", a `ContactSensor` for the valve, and a `ContactSensor` for flow carrying the Eve flow-rate and daily-total characteristics |
 | floor heating | `TemperatureSensor` for the supply pipe, `ContactSensor` for the pump, `ContactSensor` for overheat |
 | gate | Optional `ContactSensor` for camera health |
