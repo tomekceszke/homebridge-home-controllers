@@ -15,8 +15,6 @@ topic readwrite gate/+/status
 # forge a valve event or a sensor reading.
 user homebridge
 topic read sensors/#
-# heating/ is sensors-controller's prefix before 2.3.0; remove once its retained topics are cleared
-topic read heating/#
 topic read water/#
 topic read floorheating/#
 topic read gate/#
