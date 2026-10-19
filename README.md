@@ -15,9 +15,8 @@ board within a second or two. Restarting Homebridge therefore costs nothing: the
 no polling interval to wait out, and no window where accessories show stale values.
 
 ```
-heating/aabbcc000001/state        hc-1, 3 sensors
-heating/aabbcc000002/state        hc-2, 7 sensors
-heatronic/aabbcc000006/state      boiler-room and outdoor DS18B20s (formerly hc-1's)
+sensors/aabbcc000002/state        sensors-controller, 7 pipe sensors (heating/… before its 2.3.0)
+heatronic/aabbcc000006/state      boiler-room and outdoor DS18B20s
 water/aabbcc000003/state          valve, flow, usage
 floorheating/aabbcc000004/state   supply temperature, pump
 gate/aabbcc000005/state           pulse counter, camera health
@@ -27,8 +26,8 @@ gate/aabbcc000005/state           pulse counter, camera health
 
 | Controller | Accessories |
 |---|---|
-| heating ×2 | One `TemperatureSensor` per DS18B20, named from the firmware's own labels, plus the supply/return differences if enabled |
-| heatronic | One `TemperatureSensor` per DS18B20, as for heating; the boiler's own bus data is not exposed |
+| sensors | One `TemperatureSensor` per DS18B20, named from the firmware's own labels, plus the supply/return differences if enabled |
+| heatronic | One `TemperatureSensor` per DS18B20, as for sensors; the boiler's own bus data is not exposed |
 | water | `LeakSensor`, a `ContactSensor` "Unusual water use", a `ContactSensor` for the valve, and a `ContactSensor` for flow carrying the Eve flow-rate and daily-total characteristics |
 | floor heating | `TemperatureSensor` for the supply pipe, `ContactSensor` for the pump, `ContactSensor` for overheat |
 | gate | Optional `ContactSensor` for camera health |
@@ -118,7 +117,7 @@ subscribing with one returns the retained status topics and nothing else. `serve
 `homebridge` along with the two device accounts that exist only for this integration.
 
 Mosquitto takes a single `password_file` and `acl_file`, so every project installs a fragment under
-`passwd.d`/`acl.d` and the set is concatenated. Never edit the merged files: the next heating or water
+`passwd.d`/`acl.d` and the set is concatenated. Never edit the merged files: the next project
 deploy overwrites them.
 
 **Every writable topic is listed explicitly in the ACL, and Mosquitto silently drops publishes no rule

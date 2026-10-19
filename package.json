@@ -1,7 +1,7 @@
 {
   "name": "@tomekceszke/homebridge-home-controllers",
   "displayName": "Home Controllers",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "description": "Brings the house ESP32 controllers into Apple Home over the shared MQTT bus",

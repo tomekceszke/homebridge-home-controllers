@@ -9,7 +9,7 @@ export interface HeatingOptions {
 }
 
 /*
- * heating-controller: one board, up to eight DS18B20 on a 1-Wire bus, sampled every sample_period_s.
+ * sensors-controller (formerly heating-controller): one board, up to eight DS18B20 on a 1-Wire bus, sampled every sample_period_s.
  *
  * A reading is refused rather than shown when the firmware marks the sensor lost, when the value is null,
  * or when it has not been refreshed for three sample periods. The last case is the one that matters in
@@ -17,7 +17,7 @@ export interface HeatingOptions {
  * would otherwise show a plausible, frozen temperature forever.
  */
 export function heatingSignals(state: Record<string, unknown>, options: HeatingOptions): DeviceSignals {
-  const board = asString(state.device) ?? 'Heating';
+  const board = asString(state.device) ?? 'Sensors';
   const period = asNumber(state.sample_period_s) ?? 60;
   const maxAge = period * 3;
   const signals: Signal[] = [];
@@ -66,5 +66,5 @@ export function heatingSignals(state: Record<string, unknown>, options: HeatingO
     }
   }
 
-  return { model: 'heating-controller', displayName: board, signals };
+  return { model: 'sensors-controller', displayName: board, signals };
 }

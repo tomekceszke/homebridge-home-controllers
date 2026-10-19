@@ -191,7 +191,7 @@ export class HomeControllersPlatform implements DynamicPlatformPlugin {
   }
 
   /*
-   * A signal is matched by its name ("Outdoor") or by its full id ("heating/<mac>/<sensor>"), so the
+   * A signal is matched by its name ("Outdoor") or by its full id ("sensors:<mac>:<sensor>"), so the
    * config can stay readable and still disambiguate two boards that label a sensor the same way.
    * An include list, when present, wins outright; otherwise everything not excluded is kept.
    */
@@ -233,7 +233,8 @@ export class HomeControllersPlatform implements DynamicPlatformPlugin {
 
   private describe(namespace: string, state: Record<string, unknown>): DeviceSignals | null {
     switch (namespace) {
-      case 'heating':
+      case 'sensors':   // sensors-controller since 2.3.0
+      case 'heating':   // its prefix before 2.3.0, when it was heating-controller
         return heatingSignals(state, { exposeDeltas: this.config.exposeHeatingDeltas !== false });
       case 'heatronic':
         return heatronicSignals(state);
