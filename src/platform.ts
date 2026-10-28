@@ -13,6 +13,10 @@ import { gateSignals } from './devices/gate.js';
 import { heatingSignals } from './devices/heating.js';
 import { heatronicSignals } from './devices/heatronic.js';
 import { waterSignals } from './devices/water.js';
+import {
+  documentTime, REQUEST_TOPIC, requestPayload, thermostatView, type ThermostatRequest,
+} from './devices/thermostat.js';
+import { ThermostatAccessory } from './thermostat.js';
 
 interface BrokerConfig {
   host?: string;
@@ -38,9 +42,16 @@ interface Device {
   reachable: boolean;
   lastStateAt: number;
   accessories: Map<string, ControllerAccessory>;
+  /** heatronic only: the house thermostat, from its own retained document. */
+  thermostat?: ThermostatAccessory;
+  lastThermostatAt: number;
 }
 
 const RECHECK_INTERVAL_MS = 30_000;
+/* heatronic publishes its thermostat document on every change and every 30 s while connected. */
+const THERMOSTAT_STALE_MS = 120_000;
+const THERMOSTAT_NAME = 'Thermostat';
+const PUBLISH_TIMEOUT_MS = 5_000;
 
 /** Debug-log shape: enough to tell a real reading from a refused one at a glance. */
 function describeValue(signal: Signal): string {
@@ -118,7 +129,7 @@ export class HomeControllersPlatform implements DynamicPlatformPlugin {
       this.log.info('Broker connected; subscribing');
       /* The retained state documents arrive immediately on subscribe, so a restart needs no polling and
        * no waiting for the devices' own publish period. */
-      this.client!.subscribe(['+/+/state', '+/+/status'], { qos: 1 }, (error) => {
+      this.client!.subscribe(['+/+/state', '+/+/status', 'heatronic/+/thermostat'], { qos: 1 }, (error) => {
         if (error) {
           this.log.error(`Subscribe failed: ${error.message}`);
         }
@@ -161,7 +172,7 @@ export class HomeControllersPlatform implements DynamicPlatformPlugin {
       return;
     }
 
-    if (kind !== 'state') {
+    if (kind !== 'state' && !(kind === 'thermostat' && namespace === 'heatronic')) {
       return;
     }
 
@@ -169,7 +180,12 @@ export class HomeControllersPlatform implements DynamicPlatformPlugin {
     try {
       parsed = JSON.parse(payload.toString());
     } catch (error) {
-      this.log.warn(`${topic}: unreadable state document (${(error as Error).message})`);
+      this.log.warn(`${topic}: unreadable ${kind} document (${(error as Error).message})`);
+      return;
+    }
+
+    if (kind === 'thermostat') {
+      this.onThermostat(namespace, mac, parsed);
       return;
     }
 
@@ -179,15 +195,85 @@ export class HomeControllersPlatform implements DynamicPlatformPlugin {
       return;
     }
 
-    let device = this.devices.get(key);
-    if (device === undefined) {
-      device = { namespace, mac, online: true, reachable: true, lastStateAt: Date.now(), accessories: new Map() };
-      this.devices.set(key, device);
+    const device = this.deviceFor(namespace, mac);
+    if (device.lastStateAt === 0) {
       this.log.info(`Discovered ${described.displayName} (${namespace}/${mac}), ${described.signals.length} signal(s)`);
     }
     device.lastStateAt = Date.now();
     device.online = true;
     this.sync(device, described);
+  }
+
+  /** Created from a document, never from a status alone (see the ghost rule above). */
+  private deviceFor(namespace: string, mac: string): Device {
+    const key = `${namespace}/${mac}`;
+    let device = this.devices.get(key);
+    if (device === undefined) {
+      device = {
+        namespace, mac, online: true, reachable: true, lastStateAt: 0, accessories: new Map(), lastThermostatAt: 0,
+      };
+      this.devices.set(key, device);
+    }
+    return device;
+  }
+
+  private onThermostat(namespace: string, mac: string, parsed: unknown): void {
+    const view = thermostatView(parsed);
+    if (view === null) {
+      this.log.warn(`${namespace}/${mac}/thermostat: not a thermostat document, ignored`);
+      return;
+    }
+    const id = `${namespace}:${mac}:thermostat`;
+    if (!this.allowed(THERMOSTAT_NAME, id)) {
+      return;
+    }
+    const device = this.deviceFor(namespace, mac);
+    device.lastThermostatAt = documentTime(view, Date.now());
+
+    if (device.thermostat === undefined) {
+      const uuid = this.api.hap.uuid.generate(id);
+      let accessory = this.cached.find((entry) => entry.UUID === uuid);
+      if (accessory === undefined) {
+        accessory = new this.api.platformAccessory(THERMOSTAT_NAME, uuid);
+        accessory.context.id = id;
+        accessory.context.name = THERMOSTAT_NAME;
+        device.thermostat = new ThermostatAccessory(this, accessory, THERMOSTAT_NAME, id);
+        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        this.log.info(`Added "${THERMOSTAT_NAME}"`);
+      } else {
+        accessory.context.id = id;
+        accessory.context.name = THERMOSTAT_NAME;
+        device.thermostat = new ThermostatAccessory(this, accessory, THERMOSTAT_NAME, id);
+        this.api.updatePlatformAccessories([accessory]);
+      }
+    }
+    device.thermostat.update(view, this.isThermostatReachable(device));
+    this.log.debug(`${id} = room ${view.roomC ?? '?'} °C, set ${view.setC ?? '?'} °C${view.paused ? ', paused' : ''}`
+      + `${view.acceptsRequests ? '' : ', requests refused'}`);
+  }
+
+  /*
+   * A panel request on heatronic's contract. Started only over a live connection, so nothing is queued while the
+   * broker is down; without a PUBACK within a few seconds the Home app is told it failed.
+   */
+  async publishRequest(request: ThermostatRequest): Promise<void> {
+    const client = this.client;
+    if (client === undefined || !client.connected) {
+      throw new Error('broker not connected');
+    }
+    const payload = requestPayload(request, Date.now());
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        client.publishAsync(REQUEST_TOPIC, payload, { qos: 1, retain: false }),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('no PUBACK within 5 s')), PUBLISH_TIMEOUT_MS);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+    this.log.info(`${THERMOSTAT_NAME}: requested ${payload}`);
   }
 
   /*
@@ -292,9 +378,16 @@ export class HomeControllersPlatform implements DynamicPlatformPlugin {
     return device.online && Date.now() - device.lastStateAt < staleAfterMs;
   }
 
+  /* The thermostat has its own document and a tighter limit: it is the one accessory people act on. */
+  private isThermostatReachable(device: Device): boolean {
+    return device.online && this.client?.connected === true
+      && Date.now() - device.lastThermostatAt < THERMOSTAT_STALE_MS;
+  }
+
   private refresh(device: Device): void {
     const reachable = this.isReachable(device);
-    if (reachable !== device.reachable) {
+    /* A board known so far only from its thermostat document has no state document to go stale. */
+    if (reachable !== device.reachable && device.lastStateAt > 0) {
       device.reachable = reachable;
       const reason = device.online ? 'state document went stale' : 'broker reports it offline';
       this.log.info(reachable
@@ -304,6 +397,7 @@ export class HomeControllersPlatform implements DynamicPlatformPlugin {
     for (const handler of device.accessories.values()) {
       handler.setReachable(reachable);
     }
+    device.thermostat?.setReachable(this.isThermostatReachable(device));
   }
 
   private refreshAll(): void {

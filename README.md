@@ -1,8 +1,8 @@
 # homebridge-home-controllers
 
 Brings the house ESP32 controllers into Apple Home. It subscribes to the shared Mosquitto broker on
-`hc-data` and reads nothing else: no device is polled, and the plugin holds no credentials that could
-change anything.
+`hc-data` and reads nothing else: no device is polled. The one thing it writes is the heating thermostat's
+request (set point, pause), on the same topic the wall panels use; the board that owns the heating decides.
 
 ## How it works
 
@@ -17,6 +17,7 @@ no polling interval to wait out, and no window where accessories show stale valu
 ```
 sensors/aabbcc000002/state        sensors-controller, 7 pipe sensors (heating/… before its 2.3.0)
 heatronic/aabbcc000006/state      boiler-room and outdoor DS18B20s
+heatronic/aabbcc000006/thermostat room temperature, set point and mode in force (the thermostat)
 water/aabbcc000003/state          valve, flow, usage
 floorheating/aabbcc000004/state   supply temperature, pump
 gate/aabbcc000005/state           pulse counter, camera health
@@ -27,7 +28,7 @@ gate/aabbcc000005/state           pulse counter, camera health
 | Controller | Accessories |
 |---|---|
 | sensors | One `TemperatureSensor` per DS18B20, named from the firmware's own labels, plus the supply/return differences if enabled |
-| heatronic | One `TemperatureSensor` per DS18B20, as for sensors; the boiler's own bus data is not exposed |
+| heatronic | One `TemperatureSensor` per DS18B20, as for sensors, and the house `Thermostat` (below); the rest of the boiler's bus data is not exposed |
 | water | `LeakSensor`, a `ContactSensor` "Unusual water use", a `ContactSensor` for the valve, and a `ContactSensor` for flow carrying the Eve flow-rate and daily-total characteristics |
 | floor heating | `TemperatureSensor` for the supply pipe, `ContactSensor` for the pump, `ContactSensor` for overheat |
 | gate | Optional `ContactSensor` for camera health |
@@ -59,6 +60,32 @@ fix that properly.
 HomeKit has no service for a difference. An 8 K delta is published as 8 °C — wrong as a unit, but it makes
 "notify me when the supply/return difference collapses" expressible as an ordinary automation. Turn it off
 with `exposeHeatingDeltas` if the wrong unit bothers you more than the missing automation.
+
+## Thermostat
+
+heatronic-controller runs the heating and owns the room set point. Apple Home gets it as one `Thermostat`
+(id `heatronic:<mac>:thermostat`, name "Thermostat"), built from the board's retained thermostat document:
+
+| Apple Home | From / to heatronic |
+|---|---|
+| Current temperature | `room_c`: the reference room that controls the heating (the W100 in the living room) |
+| Target temperature | `set_c`, the set point in force; a change sends `{"set_c": 21.5}` (0.5 °C steps, 10–25 °C; the board holds it until the next program switch, at least 2 h) |
+| Heat / Off | Heat = the program, Off = `mode: pause` (no heating until the next program switch, frost protection kept); Heat while paused sends `mode: auto` |
+| Heating / idle | `state` is `heat` (a heating request, also between burner runs) |
+
+Requests go to `heatronic/room/setpoint/set` with `"source": "apple"`, the contract every panel uses
+(heatronic-controller `docs/DATA.md`, Room set point). Apple Home shows the requested value until the board's
+document confirms it, at most 35 s, then the document wins and the log says the request was not confirmed. A
+PUBACK proves nothing here: the broker drops a publish its ACL does not cover without telling anyone.
+
+Heat is sent again by the Home app along with a temperature change, so `auto` goes out only to end a pause:
+it would also end a set point just made.
+
+Writes are refused (an error in the Home app) while the board does not take requests (`accepts_requests`
+false: the FW100 controls) and while the broker is down; nothing is queued for later. The thermostat shows
+**No Response** when its document is older than 120 s by the board's own timestamp (it comes on every change and
+every 30 s, so a retained copy left by a dead board does not count), the board is offline, or the room reading
+is missing.
 
 ## Choosing what appears
 
@@ -112,8 +139,9 @@ status alone, so a permanently unreachable device never reaches Apple Home.
 
 ## Broker account
 
-The plugin needs a **read-only** account. Device accounts will not work: they are write-only, so
-subscribing with one returns the retained status topics and nothing else. `server/install.sh` provisions
+The plugin needs a reading account that may also write the one thermostat request topic. Device
+accounts will not work: they are write-only, so subscribing with one returns the retained status topics
+and nothing else. `server/install.sh` provisions
 `homebridge` along with the two device accounts that exist only for this integration.
 
 Mosquitto takes a single `password_file` and `acl_file`, so every project installs a fragment under
@@ -153,8 +181,9 @@ homebridge -D -U ./test-config -P .
 Requires Node 22 or 24 and Homebridge 1.6+ or 2.x. The plugin is ESM and uses only the public Homebridge
 API, so it runs unchanged on both.
 
-## Read-only by design
+## One write, by design
 
-The plugin never writes to the bus and never calls a device. Control — the valve, the pump, the gate —
-is deliberately out of scope for this version: the bridge has to prove it is stable before anything in
+The plugin never calls a device. Its only write is the thermostat request (1.4.0), which the heating board
+validates and clamps like a request from any wall panel; a leaked bridge password can ask for a set point
+or a pause and nothing more. Control of the valve, the pump and the gate stays out of scope: nothing in
 Apple Home is allowed to move water or open a gate.

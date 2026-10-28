@@ -11,11 +11,13 @@ user gate-controller
 topic write gate/+/state
 topic readwrite gate/+/status
 
-# The bridge reads every namespace and writes nothing: a leaked bridge password must not be able to
-# forge a valve event or a sensor reading.
+# The bridge reads every namespace and writes one topic: the Apple Home thermostat's request (set point,
+# pause), which heatronic-controller validates and clamps like any panel's. A leaked bridge password can
+# ask for a set point and nothing else: it cannot forge a valve event or a sensor reading.
 user homebridge
 topic read sensors/#
 topic read water/#
 topic read floorheating/#
 topic read gate/#
 topic read heatronic/#
+topic write heatronic/room/setpoint/set

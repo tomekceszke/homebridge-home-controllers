@@ -2,7 +2,7 @@
   "pluginAlias": "HomeControllers",
   "pluginType": "platform",
   "singular": true,
-  "headerDisplay": "Reads the house controllers off the shared MQTT broker. Each board publishes a retained state document, so accessories appear as soon as the bridge subscribes - nothing is polled.",
+  "headerDisplay": "Reads the house controllers off the shared MQTT broker. Each board publishes a retained state document, so accessories appear as soon as the bridge subscribes - nothing is polled. The heating thermostat sends its requests back over the broker.",
   "schema": {
     "type": "object",
     "properties": {
@@ -34,7 +34,7 @@
             "type": "string",
             "required": true,
             "default": "homebridge",
-            "description": "A read-only account. It must not be a device account: those are write-only and see nothing."
+            "description": "The bridge account: reads every namespace, writes only the thermostat request topic. It must not be a device account: those are write-only and see nothing."
           },
           "password": {
             "title": "Password",
